@@ -20,18 +20,18 @@ if __name__ == '__main__':
     if not os.path.exists(args.streaming_data_path):
         raise FileNotFoundError(f"The directory '{args.streaming_data_path}' does not exist.")
     if not os.path.exists(args.to_save_path):
-        print(f"The directory '{args.to_save_path}' does not exist.")
-        print("Creating the directory - {}".format(args.to_save_path))
+        print(f"~~~ The directory '{args.to_save_path}' does not exist. ~~~~")
+        print("===> Creating the directory - {}".format(args.to_save_path))
         os.makedirs(args.to_save_path)
-        print("Directory created")
-        print("==> Training the machine learning model")
+        print("===> Directory created")
+        print("===> Training the machine learning model")
         train_model(data_path=args.data_path, to_save_path=args.to_save_path)
         #raise FileNotFoundError(f"The directory '{args.to_save_path}' does not exist.")
     
     if not os.path.exists("{}/classifier.joblib".format(args.to_save_path)):
-        print("No trained machine learning exists")
+        print("~~~ No trained machine learning exists ~~~")
         print("==> Training the machine learning model")
-        train_model(data_path=args.data_path, to_save_path=args.to_save_path)
+        train_model(dataset=pd.read_csv(args.data_path), to_save_path=args.to_save_path)
         
     #preset values
     fraud_instances_threshold = 20
@@ -52,14 +52,14 @@ if __name__ == '__main__':
     try:
         while(True):
             directory_contents = os.listdir(args.streaming_data_path)
+            #keeping only csv files
+            directory_contents = remove_non_csv_files(directory_contents)
             num_files = len(directory_contents)
             if num_files > 1 or (num_files == 1 and 'new_data.csv' not in directory_contents):
-                #keeping only csv files
-                directory_contents = remove_non_csv_files(directory_contents)
-
+                
                 combined_data = combine_streaming_data(args.streaming_data_path, directory_contents)
                 combined_data.to_csv("{}/new_data.csv".format(args.streaming_data_path), index=False)
-                print("Combined and appended all the chunks of streamed data into new_data.csv")
+                print("===> Combined and appended all the chunks of streamed data into new_data.csv")
                 delete_individual_chunks(args.streaming_data_path, directory_contents)
                 
                 new_data = combined_data
@@ -70,22 +70,33 @@ if __name__ == '__main__':
                     processed_new_data, y_true = preprocess(new_data, normalizer)
                     recall_score = classification_scores("current_model-new_data", y_true, ml_model.predict(processed_new_data))["recall_score"]
                     
-                    if recall_score > recall_score_threshold:
-                        continue
+                    if recall_score >= recall_score_threshold:
+                        print("===> Model performance is above threshold on the new data")
                     else:
+                        print("===> Model performance is below the threshold on the new data")
                         print("===> Reading the dataset")
                         creditCard = pd.read_csv(args.data_path)
-                        print("Adding new data to the existing dataset")
-                        creditCard = pd.concat([creditCard,new_data], axis=0, ignore_index=True)
+                        print("===> Adding new data to the existing dataset")
+                        #matching columns before merging datasets
+                        temp_data = new_data.rename(columns={new_data.columns[0]:creditCard.columns[0]})
                         
-                        creditCard.to_csv(args.data_path)
-                        print("Saved the updated dataset at ", args.data_path)
+                        creditCard = pd.concat([creditCard,temp_data], axis=0, ignore_index=True)
+                        
+                        creditCard.to_csv(args.data_path, index=False)
+                        print("===> Saved the updated dataset at ", args.data_path)
+                        # Remove all rows in new data
+                        new_data.drop(index=new_data.index, inplace=True)
+                        new_data.to_csv("{}/new_data.csv".format(args.streaming_data_path), index=False)
+                        print("===> Deleted data in new_data.csv")
                         
                         train_model(creditCard, args.to_save_path)
                         
                         #load the new model
                         ml_model, normalizer = load_model(args.to_save_path)
-            
+                else:
+                    print("~~~ Not enough fraud instances. Waiting for more data. ~~~")
+            else:
+                print("~~~ Waiting for streaming data ~~~")
             time.sleep(3)
     except KeyboardInterrupt:
         # Saving the dataframe as csv file

@@ -5,7 +5,7 @@ def get_random_string(length=10):
     return ''.join(random.choices(string.ascii_letters, k=length))
 
 if __name__ == '__main__':
-    debug = True
+    debug = False
     if debug:
         print("<<<< PLEASE NOTE THAT DEBUG MODE IS ON >>>>")
     parser = argparse.ArgumentParser()
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     
     #manually set values
     step_size_fraud = 20
-    wait_period = 10
+    wait_period = 30
     
     if debug:
         wait_period = 3

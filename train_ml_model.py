@@ -6,25 +6,26 @@ from sklearn.metrics import recall_score, balanced_accuracy_score, f1_score, ave
 from sklearn import ensemble, naive_bayes
 from xgboost import XGBClassifier
 
-debug = True
+debug = False
 
 def preprocess(data, normalizer):
     # Data cleaning
     print("===> Performing data cleaning")
-    # Removing missing values
-    preprocessed_data = data.dropna(inplace=False)
-    
     #dropping time/id column
-    to_drop_cols = ["Time", "id"]
-    for drop_col in to_drop_cols:
-        if drop_col in preprocessed_data.columns:
-            preprocessed_data.drop(columns=[drop_col], inplace=True)
+    if 'Time' in data.columns:
+        preprocessed_data = data.drop(columns=['Time'])
+    elif 'id' in data.columns:
+        preprocessed_data = data.drop(columns=['id'])
+
+    # Removing missing values
+    preprocessed_data.dropna(inplace=True)
+    
     class_col = preprocessed_data["Class"]
     preprocessed_data.drop(columns=["Class"], inplace=True)
     
     # Peforming normalization
     print("===> Performing data normalization")
-    preprocessed_data = normalizer.tranform(preprocessed_data)
+    preprocessed_data = normalizer.transform(preprocessed_data)
     
     return preprocessed_data, class_col
 
@@ -55,14 +56,16 @@ def train_model(dataset, to_save_path):
     
     # Data cleaning
     print("===> Performing data cleaning")
-    # Removing missing values
-    creditCard.dropna(inplace=True)
     
     #dropping time/id column
     to_drop_cols = ["Time", "id"]
     for drop_col in to_drop_cols:
         if drop_col in creditCard.columns:
             creditCard.drop(columns=[drop_col], inplace=True)
+    
+    # Removing missing values
+    creditCard.dropna(inplace=True)
+    
     Y = creditCard["Class"]
     creditCard.drop(columns=["Class"], inplace=True)
     
@@ -95,6 +98,7 @@ def train_model(dataset, to_save_path):
     print("===> Training the model on the whole dataset")
     if debug:
         classifier = testing_classifier
+        creditCard_normalized = scaler.transform(creditCard)
     else:
         clf1 = XGBClassifier(eval_metric = recall_score)
         clf2 = ensemble.RandomForestClassifier()
