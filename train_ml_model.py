@@ -1,6 +1,5 @@
-import argparse, os, re, joblib
+import os, re, joblib
 import pandas as pd
-import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import recall_score, balanced_accuracy_score, f1_score, average_precision_score, precision_score, roc_auc_score, roc_curve, precision_recall_curve
@@ -8,6 +7,26 @@ from sklearn import ensemble, naive_bayes
 from xgboost import XGBClassifier
 
 debug = True
+
+def preprocess(data, normalizer):
+    # Data cleaning
+    print("===> Performing data cleaning")
+    # Removing missing values
+    data.dropna(inplace=True)
+    
+    #dropping time/id column
+    to_drop_cols = ["Time", "id"]
+    for drop_col in to_drop_cols:
+        if drop_col in data.columns:
+            data.drop(columns=[drop_col], inplace=True)
+    class_col = data["Class"]
+    data.drop(columns=["Class"], inplace=True)
+    
+    # Peforming normalization
+    print("===> Performing data normalization")
+    data = normalizer.tranform(data)
+    
+    return data, class_col
 
 def classification_scores(model_name, y_true, y_pred):
     scores = {}
@@ -23,15 +42,10 @@ def classification_scores(model_name, y_true, y_pred):
     
     return scores
 
-def train(data_path, to_save_path):
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--data_path', type=str, required=True, help='absolute path to dataset')
-    # parser.add_argument('--to_save_path', type=str, required=True, help='absolute path where to save the model')
-    
-    # args = parser.parse_args()
-    
-    # if not args.data_path or not args.to_save_path:
-    #     raise("path is not provided")
+def train_model(data_path, to_save_path):
+
+    if debug:
+        print("<<<< PLEASE NOTE THAT DEBUG MODE IS ON >>>>")
     
     if not os.path.exists(data_path):
         raise FileNotFoundError(f"The file '{data_path}' does not exist.")
@@ -111,14 +125,16 @@ def train(data_path, to_save_path):
         else:
             performance_log = pd.read_csv(peformance_log_file_path)
         
-        performance_log["model"] = "new_model"
+        model_performance["model"] = "new_model"
         print("===> Saving the ML model, StandardScaler and updating the log file.")
         joblib.dump(classifier, '{}/classifier.joblib'.format(to_save_path))
+        
         if debug:
             print('ML model saved at {}/classifier.joblib'.format(to_save_path))
         joblib.dump(scaler, '{}/normalizer.joblib'.format(to_save_path))
         if debug:
             print('Scaler saved at {}/normalizer.joblib'.format(to_save_path))
+        
         performance_log = pd.concat([performance_log, pd.DataFrame([model_performance])])
         performance_log.to_csv('{}/model_performance_log.csv'.format(to_save_path), index=False)
         if debug:
@@ -129,7 +145,7 @@ def train(data_path, to_save_path):
         print("Logging the performance")
         creditCard_normalized = deployed_scaler.transform(creditCard)
         model_performance = classification_scores("[performance-on-the-whole-dataset] classifier-train", Y, deployed_model.predict(creditCard_normalized))
-        
+        model_performance["model"] = "prev_model"
         peformance_log_file_path = "{}/model_performance_log.csv".format(to_save_path)
         performance_log = pd.read_csv(peformance_log_file_path)
         
