@@ -1,4 +1,4 @@
-import os, re, joblib
+import os, re, joblib, datetime
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
@@ -12,21 +12,21 @@ def preprocess(data, normalizer):
     # Data cleaning
     print("===> Performing data cleaning")
     # Removing missing values
-    data.dropna(inplace=True)
+    preprocessed_data = data.dropna(inplace=False)
     
     #dropping time/id column
     to_drop_cols = ["Time", "id"]
     for drop_col in to_drop_cols:
-        if drop_col in data.columns:
-            data.drop(columns=[drop_col], inplace=True)
-    class_col = data["Class"]
-    data.drop(columns=["Class"], inplace=True)
+        if drop_col in preprocessed_data.columns:
+            preprocessed_data.drop(columns=[drop_col], inplace=True)
+    class_col = preprocessed_data["Class"]
+    preprocessed_data.drop(columns=["Class"], inplace=True)
     
     # Peforming normalization
     print("===> Performing data normalization")
-    data = normalizer.tranform(data)
+    preprocessed_data = normalizer.tranform(preprocessed_data)
     
-    return data, class_col
+    return preprocessed_data, class_col
 
 def classification_scores(model_name, y_true, y_pred):
     scores = {}
@@ -42,18 +42,16 @@ def classification_scores(model_name, y_true, y_pred):
     
     return scores
 
-def train_model(data_path, to_save_path):
+def train_model(dataset, to_save_path):
 
     if debug:
         print("<<<< PLEASE NOTE THAT DEBUG MODE IS ON >>>>")
-    
-    if not os.path.exists(data_path):
-        raise FileNotFoundError(f"The file '{data_path}' does not exist.")
+
     if not os.path.exists(to_save_path):
         raise FileNotFoundError(f"The directory '{to_save_path}' does not exist.")
     
     print("===> Reading the dataset")
-    creditCard = pd.read_csv(data_path)
+    creditCard = dataset
     
     # Data cleaning
     print("===> Performing data cleaning")
@@ -92,68 +90,45 @@ def train_model(data_path, to_save_path):
     testing_classifier = testing_classifier.fit(X_train, y_train)
     train_scores = classification_scores("testing_classifier-train", y_train, testing_classifier.predict(X_train))
     test_scores = classification_scores("testing_classifier-test",y_test, testing_classifier.predict(X_test))
-    
-    firstModel = False
-    if not os.path.exists('{}/classifier.joblib'.format(to_save_path)):
-        firstModel = True
-    else:
-        deployed_scaler = joblib.load('{}/normalizer.joblib'.format(to_save_path))
-        deployed_model = joblib.load('{}/classifier.joblib'.format(to_save_path))
-        old_scores = classification_scores("deployed_classifier-test",y_test, deployed_model.predict(deployed_scaler.transform(X_test)))
 
-    if firstModel or old_scores["recall_score"] < test_scores["recall_score"]:
-        print("New model is performing better!")
-        #training model on the whole dataset
-        print("===> Training the model on the whole dataset")
-        if debug:
-            classifier = testing_classifier
-        else:
-            clf1 = XGBClassifier(eval_metric = recall_score)
-            clf2 = ensemble.RandomForestClassifier()
-            clf3 = naive_bayes.GaussianNB()
-            classifier = ensemble.VotingClassifier(estimators=[
-                ('xgb', clf1), ('random_forest', clf2), ('naive_bayes', clf3)], verbose=2, n_jobs = -1)
-            
-            creditCard_normalized = scaler.transform(creditCard)
-            classifier = classifier.fit(creditCard_normalized, Y)
-        
-        model_performance = classification_scores("[performance-on-the-whole-dataset] classifier-train", Y, classifier.predict(creditCard_normalized))
-        peformance_log_file_path = "{}/model_performance_log.csv".format(to_save_path)
-        
-        if not os.path.exists(peformance_log_file_path):
-            performance_log = pd.DataFrame(columns = ["model"] + list(model_performance))
-        else:
-            performance_log = pd.read_csv(peformance_log_file_path)
-        
-        model_performance["model"] = "new_model"
-        print("===> Saving the ML model, StandardScaler and updating the log file.")
-        joblib.dump(classifier, '{}/classifier.joblib'.format(to_save_path))
-        
-        if debug:
-            print('ML model saved at {}/classifier.joblib'.format(to_save_path))
-        joblib.dump(scaler, '{}/normalizer.joblib'.format(to_save_path))
-        if debug:
-            print('Scaler saved at {}/normalizer.joblib'.format(to_save_path))
-        
-        performance_log = pd.concat([performance_log, pd.DataFrame([model_performance])])
-        performance_log.to_csv('{}/model_performance_log.csv'.format(to_save_path), index=False)
-        if debug:
-            print('log updated at {}/model_performance_log.csv'.format(to_save_path))
-        
+    #training model on the whole dataset
+    print("===> Training the model on the whole dataset")
+    if debug:
+        classifier = testing_classifier
     else:
-        print("The deployed is performing equivalent.")
-        print("Logging the performance")
-        creditCard_normalized = deployed_scaler.transform(creditCard)
-        model_performance = classification_scores("[performance-on-the-whole-dataset] classifier-train", Y, deployed_model.predict(creditCard_normalized))
-        model_performance["model"] = "prev_model"
-        peformance_log_file_path = "{}/model_performance_log.csv".format(to_save_path)
-        performance_log = pd.read_csv(peformance_log_file_path)
+        clf1 = XGBClassifier(eval_metric = recall_score)
+        clf2 = ensemble.RandomForestClassifier()
+        clf3 = naive_bayes.GaussianNB()
+        classifier = ensemble.VotingClassifier(estimators=[
+            ('xgb', clf1), ('random_forest', clf2), ('naive_bayes', clf3)], verbose=2, n_jobs = -1)
         
-        performance_log = pd.concat([performance_log, pd.DataFrame([model_performance])])
-        performance_log.to_csv('{}/model_performance_log.csv'.format(to_save_path), index=False)
-        if debug:
-            print('log updated at {}/model_performance_log.csv'.format(to_save_path))
+        creditCard_normalized = scaler.transform(creditCard)
+        classifier = classifier.fit(creditCard_normalized, Y)
     
+    model_performance = classification_scores("[performance-on-the-whole-dataset] classifier-train", Y, classifier.predict(creditCard_normalized))
+    peformance_log_file_path = "{}/model_performance_log.csv".format(to_save_path)
+    
+    if not os.path.exists(peformance_log_file_path):
+        performance_log = pd.DataFrame(columns = ["time"] + list(model_performance))
+    else:
+        performance_log = pd.read_csv(peformance_log_file_path)
+    
+    model_performance["time"] = datetime.datetime.now().strftime('%d-%m-%Y_%H:%M:%S')
+    
+    print("===> Saving the ML model, StandardScaler and updating the log file.")
+    
+    joblib.dump(classifier, '{}/classifier.joblib'.format(to_save_path))
+    if debug:
+        print('ML model saved at {}/classifier.joblib'.format(to_save_path))
+    
+    joblib.dump(scaler, '{}/normalizer.joblib'.format(to_save_path))
+    if debug:
+        print('Scaler saved at {}/normalizer.joblib'.format(to_save_path))
+    
+    performance_log = pd.concat([performance_log, pd.DataFrame([model_performance])])
+    performance_log.to_csv('{}/model_performance_log.csv'.format(to_save_path), index=False)
+    if debug:
+        print('log updated at {}/model_performance_log.csv'.format(to_save_path))
     
     
     

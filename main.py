@@ -73,19 +73,19 @@ if __name__ == '__main__':
                     if recall_score > recall_score_threshold:
                         continue
                     else:
+                        print("===> Reading the dataset")
+                        creditCard = pd.read_csv(args.data_path)
+                        print("Adding new data to the existing dataset")
+                        creditCard = pd.concat([creditCard,new_data], axis=0, ignore_index=True)
                         
- 
-            else:
-                check performance on that
-                if performance greather than threshold:
-                    continue
-                else:
-                    merge new_data.csv with our dataset
-                    trigger train ml pipeline
-                    ?? if new model is not used, should we add new_data to our dataset or not 
-                    (if we don't it back then increase the threshold by step size)
-                    ?? should I test the model on test split or new_data because poor performance on new_data
-                    triggered the training pipeline so the new model should be tested on that data only
+                        creditCard.to_csv(args.data_path)
+                        print("Saved the updated dataset at ", args.data_path)
+                        
+                        train_model(creditCard, args.to_save_path)
+                        
+                        #load the new model
+                        ml_model, normalizer = load_model(args.to_save_path)
+            
             time.sleep(3)
     except KeyboardInterrupt:
         # Saving the dataframe as csv file
