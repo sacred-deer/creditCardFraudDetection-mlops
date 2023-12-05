@@ -66,11 +66,11 @@ if __name__ == '__main__':
                 
                 fraud_instances = calculate_fraud_instances(new_data)
                 
-                if fraud_instances > fraud_instances_threshold:
+                if fraud_instances >= fraud_instances_threshold:
                     processed_new_data, y_true = preprocess(new_data, normalizer)
                     recall_score = classification_scores("current_model-new_data", y_true, ml_model.predict(processed_new_data))["recall_score"]
                     
-                    if recall_score >= recall_score_threshold:
+                    if recall_score > recall_score_threshold:
                         print("===> Model performance is above threshold on the new data")
                     else:
                         print("===> Model performance is below the threshold on the new data")

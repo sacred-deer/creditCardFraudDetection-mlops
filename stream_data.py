@@ -35,7 +35,7 @@ if __name__ == '__main__':
     
     #manually set values
     step_size_fraud = 20
-    wait_period = 30
+    wait_period = 20
     
     if debug:
         wait_period = 3
