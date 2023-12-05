@@ -1,0 +1,56 @@
+{
+  "doc_type": "pipeline",
+  "pipelines": [{
+    "id": "ec96cc6d-6493-4297-8313-2a3497beeade",
+    "nodes": [{
+      "id": "automl",
+      "op": "wml-http-score",
+      "outputs": [{
+        "id": "automl"
+      }],
+      "parameters": {
+        "output_logs": true,
+        "stage_flag": true,
+        "optimization": {
+          "daub_include_only_estimators": ["XGBClassifierEstimator", "GradientBoostingClassifierEstimator"],
+          "learning_type": "binary",
+          "label": "Class",
+          "max_num_daub_ensembles": 1,
+          "compute_pipeline_notebooks_flag": true,
+          "daub_adaptive_subsampling_max_mem_usage": 9000000000,
+          "holdout_param": 0.15,
+          "positive_label": "1",
+          "scorer_for_ranking": "recall"
+        },
+        "wml_status": {
+          "url": "https://us-south.ml.cloud.ibm.com/v4_private/trainings"
+        },
+        "storage": {
+          "exchange": "training-prod",
+          "url": "amqps://ibm_cloud_f3fc99ba_0ae1_470e_b181_d65f4b550575:93bb103eb0b68a08f4597438fa45598c280a36cf558aa2e5b9c59ce9286ce869@e05d2e94-e200-453b-b514-d234c0202b12.blijti4d0v0nkr55oei0.private.databases.appdomain.cloud:31573"
+        }
+      },
+      "runtime_ref": "autoai",
+      "type": "execution_node"
+    }],
+    "runtime_ref": "hybrid"
+  }],
+  "primary_pipeline": "ec96cc6d-6493-4297-8313-2a3497beeade",
+  "runtimes": [{
+    "app_data": {
+      "wml_data": {
+        "hardware_spec": {
+          "id": "c076e82c-b2a7-4d20-9c0f-1f0c2fdf5a24",
+          "name": "M"
+        },
+        "software_spec": {
+          "name": "autoai-kb_rt23.1-py3.10"
+        }
+      }
+    },
+    "id": "autoai",
+    "name": "auto_ai.kb",
+    "version": "3.1.222"
+  }],
+  "version": "2.0"
+}
